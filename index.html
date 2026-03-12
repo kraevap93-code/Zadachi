@@ -233,38 +233,43 @@
             };
 
             return (
-                <div className="min-h-screen p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
+                <div className="min-h-screen p-2 sm:p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
                     <div className="max-w-4xl mx-auto">
                         
-                        <header className="sticky top-4 z-20 bg-white dark:bg-[#3f3f46] rounded-2xl shadow-lg border border-[#e5e7eb] dark:border-[#52525b] p-4 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-[#facc15] p-2.5 rounded-xl text-[#18181b] relative">
-                                    <Icon name="calendar" size={24} />
-                                    {isSyncing && (
-                                        <div className="absolute -top-1 -right-1 bg-emerald-500 rounded-full p-0.5 shadow-sm">
-                                            <Icon name="cloud" size={10} className="text-white sync-spin" />
-                                        </div>
-                                    )}
+                        <header className="sticky top-2 sm:top-4 z-20 bg-white dark:bg-[#3f3f46] rounded-2xl shadow-lg border border-[#e5e7eb] dark:border-[#52525b] p-3 sm:p-4 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
+                            <div className="flex items-center justify-between w-full sm:w-auto">
+                                <div className="flex items-center gap-3 sm:gap-4">
+                                    <div className="bg-[#facc15] p-2 sm:p-2.5 rounded-xl text-[#18181b] relative">
+                                        <Icon name="calendar" size={24} />
+                                        {isSyncing && (
+                                            <div className="absolute -top-1 -right-1 bg-emerald-500 rounded-full p-0.5 shadow-sm">
+                                                <Icon name="cloud" size={10} className="text-white sync-spin" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h1 className="text-lg sm:text-xl font-bold tracking-tight leading-none uppercase">{monthNames[currentDate.getMonth()]}</h1>
+                                        <span className="text-xs sm:text-sm text-[#4b5563] dark:text-[#a1a1aa] font-semibold">{currentDate.getFullYear()}</span>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h1 className="text-xl font-bold tracking-tight leading-none uppercase">{monthNames[currentDate.getMonth()]}</h1>
-                                    <span className="text-sm text-[#4b5563] dark:text-[#a1a1aa] font-semibold">{currentDate.getFullYear()}</span>
-                                </div>
+                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="sm:hidden p-2 bg-[#f3f4f6] dark:bg-[#27272a] rounded-xl text-[#facc15] hover:brightness-90 transition-all border border-transparent dark:border-[#52525b]">
+                                    {isDarkMode ? <Icon name="sun" size={20}/> : <Icon name="moon" size={20}/>}
+                                </button>
                             </div>
                             
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1 bg-[#f3f4f6] dark:bg-[#27272a] p-1 rounded-xl">
-                                    <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="p-2 hover:bg-white dark:hover:bg-[#3f3f46] rounded-lg transition-all"><Icon name="chevronLeft" size={20}/></button>
-                                    <button onClick={() => setCurrentDate(new Date())} className="px-4 py-1.5 text-xs font-bold uppercase hover:bg-white dark:hover:bg-[#3f3f46] rounded-lg transition-all">Сегодня</button>
-                                    <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="p-2 hover:bg-white dark:hover:bg-[#3f3f46] rounded-lg transition-all"><Icon name="chevronRight" size={20}/></button>
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <div className="flex items-center gap-1 bg-[#f3f4f6] dark:bg-[#27272a] p-1 rounded-xl w-full sm:w-auto justify-between sm:justify-start">
+                                    <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="p-2 sm:p-2 hover:bg-white dark:hover:bg-[#3f3f46] rounded-lg transition-all flex-1 sm:flex-none flex justify-center"><Icon name="chevronLeft" size={20}/></button>
+                                    <button onClick={() => setCurrentDate(new Date())} className="px-3 sm:px-4 py-1.5 text-xs font-bold uppercase hover:bg-white dark:hover:bg-[#3f3f46] rounded-lg transition-all flex-1 sm:flex-none text-center">Сегодня</button>
+                                    <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="p-2 sm:p-2 hover:bg-white dark:hover:bg-[#3f3f46] rounded-lg transition-all flex-1 sm:flex-none flex justify-center"><Icon name="chevronRight" size={20}/></button>
                                 </div>
-                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 bg-[#f3f4f6] dark:bg-[#27272a] rounded-xl text-[#facc15] hover:brightness-90 transition-all border border-transparent dark:border-[#52525b]">
+                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="hidden sm:block p-2.5 bg-[#f3f4f6] dark:bg-[#27272a] rounded-xl text-[#facc15] hover:brightness-90 transition-all border border-transparent dark:border-[#52525b]">
                                     {isDarkMode ? <Icon name="sun" size={20}/> : <Icon name="moon" size={20}/>}
                                 </button>
                             </div>
                         </header>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4 sm:space-y-6">
                             {allDays.map((date) => {
                                 const dayNum = date.getDate();
                                 const dayName = weekDays[date.getDay()];
@@ -274,40 +279,40 @@
                                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
                                 return (
-                                    <div key={dateKey} className={`flex flex-col md:flex-row gap-6 p-6 rounded-2xl border transition-all duration-300 ${today ? 'bg-white dark:bg-[#3f3f46] border-[#facc15] ring-1 ring-[#facc15] shadow-xl shadow-yellow-400/10' : 'bg-white dark:bg-[#3f3f46] border-[#e5e7eb] dark:border-[#52525b] shadow-sm'}`}>
-                                        <div className="flex md:flex-col items-center md:items-start justify-between md:justify-start gap-1 md:w-24 flex-shrink-0">
-                                            <div className="flex flex-col">
-                                                <span className={`text-4xl font-black leading-none ${today ? 'text-[#facc15]' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>{dayNum}</span>
-                                                <span className={`text-xs font-bold uppercase tracking-widest mt-1 ${isWeekend ? 'text-rose-500' : 'text-[#4b5563] dark:text-[#a1a1aa]'}`}>{dayName}</span>
+                                    <div key={dateKey} className={`flex flex-col md:flex-row gap-4 sm:gap-6 p-4 sm:p-6 rounded-2xl border transition-all duration-300 ${today ? 'bg-white dark:bg-[#3f3f46] border-[#facc15] ring-1 ring-[#facc15] shadow-xl shadow-yellow-400/10' : 'bg-white dark:bg-[#3f3f46] border-[#e5e7eb] dark:border-[#52525b] shadow-sm'}`}>
+                                        <div className="flex flex-row md:flex-col items-center md:items-start justify-between md:justify-start gap-2 md:w-24 flex-shrink-0 border-b md:border-b-0 border-[#e5e7eb] dark:border-[#52525b] pb-3 md:pb-0">
+                                            <div className="flex flex-row md:flex-col items-baseline md:items-start gap-2 md:gap-0">
+                                                <span className={`text-3xl md:text-4xl font-black leading-none ${today ? 'text-[#facc15]' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>{dayNum}</span>
+                                                <span className={`text-[10px] md:text-xs font-bold uppercase tracking-widest mt-0 md:mt-1 ${isWeekend ? 'text-rose-500' : 'text-[#4b5563] dark:text-[#a1a1aa]'}`}>{dayName}</span>
                                             </div>
                                             {today && <span className="bg-[#facc15] text-[#18181b] text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter">Текущий</span>}
                                         </div>
 
                                         <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-4">
+                                            <div className="flex items-center gap-2 mb-3 sm:mb-4">
                                                 <Icon name="list" size={14} className="text-[#facc15]" />
                                                 <h3 className="text-[10px] font-black text-[#4b5563] dark:text-[#a1a1aa] uppercase tracking-[0.2em]">Запланировано: {dayTasks.length}</h3>
                                             </div>
 
-                                            <div className="space-y-3 mb-4">
+                                            <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
                                                 {dayTasks.map((task) => (
-                                                    <div key={task.id} className={`group flex items-center gap-3 p-4 rounded-xl border transition-all ${task.completed ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 opacity-60' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15]'}`}>
-                                                        <button onClick={() => toggleTask(dateKey, task.id)} className={`transition-all transform hover:scale-110 ${task.completed ? 'text-emerald-500' : 'text-[#a1a1aa] hover:text-[#facc15]'}`}>
+                                                    <div key={task.id} className={`group flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all ${task.completed ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 opacity-60' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15]'}`}>
+                                                        <button onClick={() => toggleTask(dateKey, task.id)} className={`transition-all transform hover:scale-110 p-1 sm:p-0 ${task.completed ? 'text-emerald-500' : 'text-[#a1a1aa] hover:text-[#facc15]'}`}>
                                                             <Icon name={task.completed ? "checkCircle" : "circle"} size={22} />
                                                         </button>
-                                                        <span className={`flex-1 text-sm font-semibold tracking-tight ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>{task.text}</span>
+                                                        <span className={`flex-1 text-sm font-semibold tracking-tight leading-snug ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>{task.text}</span>
                                                         <button onClick={() => deleteTask(dateKey, task.id)} className="md:opacity-0 group-hover:opacity-100 p-2 text-[#4b5563] dark:text-[#a1a1aa] hover:text-rose-500 transition-all"><Icon name="trash" size={18} /></button>
                                                     </div>
                                                 ))}
                                             </div>
 
                                             {activeInput === dateKey ? (
-                                                <div className="flex gap-2 animate-in">
+                                                <div className="flex gap-2 animate-in flex-col sm:flex-row">
                                                     <input autoFocus type="text" value={tempTaskText} onChange={(e) => setTempTaskText(e.target.value)} onBlur={() => { if (!tempTaskText.trim()) setActiveInput(null); }} onKeyDown={(e) => { if (e.key === 'Enter') addTask(dateKey); if (e.key === 'Escape') setActiveInput(null); }} placeholder="Введите задачу..." className="flex-1 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-4 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]" />
-                                                    <button onMouseDown={(e) => e.preventDefault()} onClick={() => addTask(dateKey)} className="bg-[#facc15] text-[#18181b] px-6 py-3 rounded-xl text-sm font-black uppercase tracking-wider shadow-lg shadow-yellow-400/20">ОК</button>
+                                                    <button onMouseDown={(e) => e.preventDefault()} onClick={() => addTask(dateKey)} className="bg-[#facc15] text-[#18181b] px-6 py-3 rounded-xl text-sm font-black uppercase tracking-wider shadow-lg shadow-yellow-400/20 w-full sm:w-auto">ОК</button>
                                                 </div>
                                             ) : (
-                                                <button onClick={() => setActiveInput(dateKey)} className="group flex items-center gap-3 w-full p-4 rounded-xl border-2 border-dashed border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15] hover:bg-yellow-400/5 text-[#4b5563] dark:text-[#a1a1aa] hover:text-[#facc15] transition-all text-xs font-bold uppercase tracking-widest">
+                                                <button onClick={() => setActiveInput(dateKey)} className="group flex items-center justify-center sm:justify-start gap-3 w-full p-3 sm:p-4 rounded-xl border-2 border-dashed border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15] hover:bg-yellow-400/5 text-[#4b5563] dark:text-[#a1a1aa] hover:text-[#facc15] transition-all text-xs font-bold uppercase tracking-widest">
                                                     <Icon name="plus" size={18} className="group-hover:rotate-90 transition-transform duration-300" />
                                                     Новая задача
                                                 </button>
@@ -318,7 +323,7 @@
                             })}
                         </div>
                     </div>
-                    <footer className="mt-16 text-center border-t border-[#e5e7eb] dark:border-[#52525b] pt-8 pb-12 flex flex-col items-center justify-center gap-2">
+                    <footer className="mt-12 sm:mt-16 text-center border-t border-[#e5e7eb] dark:border-[#52525b] pt-6 sm:pt-8 pb-8 sm:pb-12 flex flex-col items-center justify-center gap-2">
                         <p className="text-[10px] font-black text-[#4b5563] dark:text-[#a1a1aa] uppercase tracking-[0.4em]">Calendar Tasks System • 2024</p>
                         <p className="text-xs text-[#a1a1aa] flex items-center gap-1">
                             Статус: {isSyncing ? <span className="text-yellow-500 flex items-center gap-1"><Icon name="cloud" size={14} className="sync-spin" /> Синхронизация...</span> : <span className="text-emerald-500 flex items-center gap-1"><Icon name="checkCircle" size={14} /> В сети</span>}
