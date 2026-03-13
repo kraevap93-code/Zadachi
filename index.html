@@ -257,7 +257,8 @@
 
             // Автоматический скролл к текущему дню
             useEffect(() => {
-                if (user && !isSyncing && !initialScrollDone && Object.keys(tasks).length > 0) {
+                // Убрано ограничение на наличие задач (tasks)
+                if (user && !isSyncing && !initialScrollDone) {
                     const timer = setTimeout(() => {
                         const todayElement = document.getElementById('today-card');
                         if (todayElement) {
@@ -267,7 +268,7 @@
                     }, 400); 
                     return () => clearTimeout(timer);
                 }
-            }, [user, isSyncing, initialScrollDone, tasks]);
+            }, [user, isSyncing, initialScrollDone]);
 
             // ЭКРАН ЗАГРУЗКИ АВТОРИЗАЦИИ
             if (authLoading) {
