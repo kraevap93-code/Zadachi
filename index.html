@@ -51,7 +51,7 @@
 <body class="bg-[#f3f4f6] dark:bg-[#27272a] transition-colors duration-300">
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module" data-presets="react,env">
+   <script type="text/babel" data-type="module" data-presets="react">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
