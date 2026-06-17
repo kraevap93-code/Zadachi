@@ -5,19 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Календарь Задач</title>
     
-    <!-- Иконка для вкладки браузера (Favicon) -->
     <link rel="icon" type="image/jpeg" href="logo4c.jpg">
-    <!-- Иконка для сохранения на экран смартфона (Apple/Android) -->
     <link rel="apple-touch-icon" href="logo4c.jpg">
 
-    <!-- Подключаем Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-    <!-- Подключаем React и Babel для обработки JSX в браузере -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
     
     <script>
         tailwind.config = {
@@ -55,7 +51,7 @@
 <body class="bg-[#f3f4f6] dark:bg-[#27272a] transition-colors duration-300">
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
+    <script type="text/babel" data-type="module" data-presets="react,env">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -82,7 +78,6 @@
 
         const { useState, useEffect, useMemo } = React;
 
-        // Вспомогательные компоненты иконок
         const Icon = ({ name, size = 20, className = "" }) => {
             const icons = {
                 chevronLeft: <path d="m15 18-6-6 6-6"/>,
@@ -98,7 +93,6 @@
                 cloud: <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>,
                 logout: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9"/>,
                 edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>,
-                // Исправленные иконки: множественные элементы завернуты в тег <g>
                 clock: <g><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>,
                 bell: <g><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></g>,
                 bellOff: <g><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></g>
@@ -114,17 +108,14 @@
             const [currentDate, setCurrentDate] = useState(new Date());
             const [tasks, setTasks] = useState({});
             
-            // Состояния добавления задачи
             const [activeInput, setActiveInput] = useState(null);
             const [tempTaskText, setTempTaskText] = useState('');
             const [tempTaskTime, setTempTaskTime] = useState('');
             
-            // Состояния редактирования задачи
             const [editingTaskId, setEditingTaskId] = useState(null);
             const [editTaskText, setEditTaskText] = useState('');
             const [editTaskTime, setEditTaskTime] = useState('');
             
-            // Состояния Авторизации
             const [user, setUser] = useState(null);
             const [authLoading, setAuthLoading] = useState(true);
             const [loginError, setLoginError] = useState('');
@@ -132,28 +123,35 @@
             const [isSyncing, setIsSyncing] = useState(false);
             const [initialScrollDone, setInitialScrollDone] = useState(false);
             
-            // Статус уведомлений
             const [notificationsPermitted, setNotificationsPermitted] = useState(
                 'Notification' in window && Notification.permission === 'granted'
             );
             
-            const [isDarkMode, setIsDarkMode] = useState(
-                localStorage.getItem('theme') === 'dark' || 
-                (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)
-            );
+            // Безопасное чтение localStorage (защита от краша при строгих настройках приватности)
+            const [isDarkMode, setIsDarkMode] = useState(() => {
+                try {
+                    return localStorage.getItem('theme') === 'dark' || 
+                           (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                } catch (e) {
+                    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+                }
+            });
 
-            // Тема
+            // Безопасная запись в localStorage
             useEffect(() => {
-                if (isDarkMode) {
-                    document.documentElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
+                try {
+                    if (isDarkMode) {
+                        document.documentElement.classList.add('dark');
+                        localStorage.setItem('theme', 'dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        localStorage.setItem('theme', 'light');
+                    }
+                } catch (e) {
+                    console.warn("Доступ к localStorage заблокирован браузером.");
                 }
             }, [isDarkMode]);
 
-            // Запрос разрешений на уведомления
             const requestNotificationPermission = async () => {
                 if (!('Notification' in window)) {
                     alert('Ваш браузер не поддерживает уведомления');
@@ -166,7 +164,6 @@
                 }
             };
 
-            // Инициализация аутентификации
             useEffect(() => {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     signInWithCustomToken(auth, __initial_auth_token).catch(console.error);
@@ -179,7 +176,6 @@
                 return () => unsubscribe();
             }, []);
 
-            // Загрузка данных из Firestore
             useEffect(() => {
                 if (!user) return;
                 setIsSyncing(true);
@@ -204,7 +200,6 @@
                 return () => unsubscribe();
             }, [user]);
 
-            // Цикл проверки уведомлений (каждые 10 секунд)
             useEffect(() => {
                 if (!user || !notificationsPermitted || Object.keys(tasks).length === 0) return;
 
@@ -218,11 +213,10 @@
                         if (task.time && !task.completed && !task.notified) {
                             const [hours, minutes] = task.time.split(':');
                             if (now.getHours() === parseInt(hours) && now.getMinutes() === parseInt(minutes)) {
-                                // Показываем уведомление
                                 new Notification("Календарь: Напоминание", {
                                     body: task.text,
                                     icon: "logo4c.jpg",
-                                    requireInteraction: true // Оставлять на экране до клика (на поддерживаемых ОС)
+                                    requireInteraction: true
                                 });
                                 needsUpdate = true;
                                 return { ...task, notified: true };
@@ -234,12 +228,11 @@
                     if (needsUpdate) {
                         const newTasksList = { ...tasks, [todayKey]: updatedTasks };
                         setTasks(newTasksList);
-                        // Тихо обновляем в фоне, не вызывая спиннер синхронизации, чтобы не моргало
                         const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'calendar', 'tasks');
                         setDoc(docRef, { data: JSON.stringify(newTasksList) }).catch(console.error);
                     }
 
-                }, 10000); // 10 секунд
+                }, 10000);
 
                 return () => clearInterval(interval);
             }, [tasks, user, notificationsPermitted]);
@@ -259,9 +252,8 @@
                 return days;
             };
 
-            // Сохранение в Firebase
             const updateTasksInCloud = async (newTasks) => {
-                setTasks(newTasks); // Мгновенное обновление UI
+                setTasks(newTasks);
                 if (!user) return;
                 
                 setIsSyncing(true);
@@ -297,7 +289,7 @@
                     text: tempTaskText, 
                     completed: false,
                     time: tempTaskTime || null,
-                    notified: false // Флаг, чтобы не показывать уведомление дважды
+                    notified: false
                 };
                 
                 const newTasks = { ...tasks, [dateKey]: [...(tasks[dateKey] || []), newTask] };
@@ -307,7 +299,6 @@
                 setTempTaskTime('');
                 setActiveInput(null);
                 
-                // Если добавили время, но нет прав на уведомления - запрашиваем
                 if (tempTaskTime && !notificationsPermitted) {
                     requestNotificationPermission();
                 }
@@ -331,7 +322,7 @@
                             ...t, 
                             text: editTaskText, 
                             time: editTaskTime || null,
-                            notified: (t.time !== editTaskTime) ? false : t.notified // Сбрасываем флаг, если время изменилось
+                            notified: (t.time !== editTaskTime) ? false : t.notified
                         } : t
                     )
                 };
@@ -384,7 +375,6 @@
                 }, 100);
             };
 
-            // Автоматический скролл к текущему дню
             useEffect(() => {
                 if (user && !isSyncing && !initialScrollDone) {
                     const timer = setTimeout(() => {
@@ -398,7 +388,6 @@
                 }
             }, [user, isSyncing, initialScrollDone]);
 
-            // ЭКРАН ЗАГРУЗКИ АВТОРИЗАЦИИ
             if (authLoading) {
                 return (
                     <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] dark:bg-[#27272a] text-[#111827] dark:text-[#f4f4f5]">
@@ -407,7 +396,6 @@
                 );
             }
 
-            // ЭКРАН ВХОДА
             if (!user) {
                 return (
                     <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] dark:bg-[#27272a] p-4 transition-colors duration-300">
@@ -441,7 +429,6 @@
                 );
             }
 
-            // ГЛАВНЫЙ ЭКРАН ПРИЛОЖЕНИЯ
             return (
                 <div className="min-h-screen p-2 sm:p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
                     <div className="max-w-4xl mx-auto">
@@ -608,5 +595,3 @@
     </script>
 </body>
 </html>
-
-
