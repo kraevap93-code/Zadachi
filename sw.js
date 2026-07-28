@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v1';
+const CACHE_NAME = 'zadachi-cache-v2'; // Изменили v1 на v2! Это заставит телефон обновить кэш
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
@@ -6,20 +6,38 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Заставляем новый Service Worker активироваться сразу
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Кэш открыт, ресурсы загружены');
+        console.log('Кэш v2 открыт, новые ресурсы загружены');
         return cache.addAll(urlsToCache);
       })
   );
+});
+
+// Добавляем логику удаления старого кэша (v1)
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Удаление старого кэша:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Если файл есть в кэше — возвращаем его, иначе делаем запрос в сеть
         return response || fetch(event.request);
       })
   );
@@ -27,11 +45,8 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   console.log('Клик по уведомлению:', event.notification);
-  
-  // Закрываем системное уведомление после клика
   event.notification.close();
 
-  // Фокусируемся на открытой вкладке с приложением или открываем новую
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
