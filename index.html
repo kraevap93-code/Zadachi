@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Календарь Задач</title>
     
+    <!-- Подключение манифеста PWA и цвета системного интерфейса -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#facc15">
+    
     <link rel="icon" type="image/jpeg" href="logo4c.jpg">
     <link rel="apple-touch-icon" href="logo4c.jpg">
 
@@ -30,9 +34,9 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .animate-in { animation: fadeIn 0.3s ease-out; }
+        .animate-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         /* Стили для лоадера синхронизации */
@@ -50,6 +54,20 @@
 </head>
 <body class="bg-[#f3f4f6] dark:bg-[#27272a] transition-colors duration-300">
     <div id="root"></div>
+
+    <!-- Регистрация Service Worker -->
+    <script>
+        // Проверяем, что мы не в изолированной песочнице (протокол должен начинаться на http)
+        if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('ServiceWorker успешно зарегистрирован!', reg.scope))
+                    .catch(err => console.warn('Ошибка регистрации ServiceWorker (PWA):', err.message));
+            });
+        } else {
+            console.log('ServiceWorker временно отключен в режиме предпросмотра. На GitHub Pages всё будет работать.');
+        }
+    </script>
 
    <script type="text/babel" data-type="module" data-presets="react">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -77,6 +95,15 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'zadachi-b507e';
 
         const { useState, useEffect, useMemo } = React;
+
+        // Аудио контекст для звука уведомлений на смартфонах
+        let audioCtx = null;
+        const initAudio = () => {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        };
 
         const Icon = ({ name, size = 20, className = "" }) => {
             const icons = {
@@ -123,11 +150,13 @@
             const [isSyncing, setIsSyncing] = useState(false);
             const [initialScrollDone, setInitialScrollDone] = useState(false);
             
+            // Состояние для внутриэкранных уведомлений (Toast)
+            const [activeAlarms, setActiveAlarms] = useState([]);
+
             const [notificationsPermitted, setNotificationsPermitted] = useState(
                 'Notification' in window && Notification.permission === 'granted'
             );
             
-            // Безопасное чтение localStorage (защита от краша при строгих настройках приватности)
             const [isDarkMode, setIsDarkMode] = useState(() => {
                 try {
                     return localStorage.getItem('theme') === 'dark' || 
@@ -137,7 +166,17 @@
                 }
             });
 
-            // Безопасная запись в localStorage
+            // Разблокировка Audio API при первом тапе (необходимо для iOS и Android)
+            useEffect(() => {
+                const handleInteract = () => initAudio();
+                document.addEventListener('click', handleInteract, { once: true });
+                document.addEventListener('touchstart', handleInteract, { once: true });
+                return () => {
+                    document.removeEventListener('click', handleInteract);
+                    document.removeEventListener('touchstart', handleInteract);
+                };
+            }, []);
+
             useEffect(() => {
                 try {
                     if (isDarkMode) {
@@ -160,7 +199,7 @@
                 const permission = await Notification.requestPermission();
                 setNotificationsPermitted(permission === 'granted');
                 if (permission !== 'granted') {
-                    alert('Вы запретили уведомления. Разрешите их в настройках сайта в браузере.');
+                    alert('Вы запретили системные уведомления. Напоминания будут работать только внутри открытого приложения.');
                 }
             };
 
@@ -179,16 +218,12 @@
             useEffect(() => {
                 if (!user) return;
                 setIsSyncing(true);
-
                 const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'calendar', 'tasks');
-
                 const unsubscribe = onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
                         const dataString = docSnap.data().data;
                         if (dataString) {
-                            try {
-                                setTasks(JSON.parse(dataString));
-                            } catch (e) { console.error("Ошибка парсинга", e); }
+                            try { setTasks(JSON.parse(dataString)); } catch (e) { console.error("Ошибка парсинга", e); }
                         }
                     }
                     setIsSyncing(false);
@@ -196,12 +231,63 @@
                     console.error("Ошибка загрузки данных:", err);
                     setIsSyncing(false);
                 });
-
                 return () => unsubscribe();
             }, [user]);
 
+            // Функция звукового сигнала
+            const playBeepSound = () => {
+                initAudio();
+                if (!audioCtx) return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    osc.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Тон
+                    osc.frequency.setValueAtTime(0, audioCtx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2);
+                    
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.5);
+                } catch (e) { console.error("Ошибка воспроизведения звука:", e); }
+            };
+
+            const triggerSystemNotification = (taskText) => {
+                const options = {
+                    body: taskText,
+                    icon: "logo4c.jpg",
+                    vibrate: [300, 100, 300, 100, 300],
+                    requireInteraction: true
+                };
+
+                // На Android Chrome new Notification(...) вызывает ошибку, требуется ServiceWorker
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistration().then(reg => {
+                        if (reg) {
+                            reg.showNotification("Напоминание!", options).catch(e => fallbackNotify(taskText, options));
+                        } else {
+                            fallbackNotify(taskText, options);
+                        }
+                    }).catch(() => fallbackNotify(taskText, options));
+                } else {
+                    fallbackNotify(taskText, options);
+                }
+            };
+
+            const fallbackNotify = (taskText, options) => {
+                try {
+                    new Notification("Напоминание!", options);
+                } catch (e) {
+                    console.log("Системные уведомления не поддерживаются в этом контексте (обычно на мобильных без PWA).");
+                }
+            };
+
+            // Главный таймер напоминаний
             useEffect(() => {
-                if (!user || !notificationsPermitted || Object.keys(tasks).length === 0) return;
+                if (!user || Object.keys(tasks).length === 0) return;
 
                 const interval = setInterval(() => {
                     const now = new Date();
@@ -213,11 +299,16 @@
                         if (task.time && !task.completed && !task.notified) {
                             const [hours, minutes] = task.time.split(':');
                             if (now.getHours() === parseInt(hours) && now.getMinutes() === parseInt(minutes)) {
-                                new Notification("Календарь: Напоминание", {
-                                    body: task.text,
-                                    icon: "logo4c.jpg",
-                                    requireInteraction: true
-                                });
+                                
+                                // 1. Внутриэкранное уведомление + Звук (гарантированно работает при открытом приложении)
+                                setActiveAlarms(prev => [...prev, task]);
+                                playBeepSound();
+
+                                // 2. Системное Push Уведомление
+                                if (notificationsPermitted) {
+                                    triggerSystemNotification(task.text);
+                                }
+                                
                                 needsUpdate = true;
                                 return { ...task, notified: true };
                             }
@@ -231,8 +322,7 @@
                         const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'calendar', 'tasks');
                         setDoc(docRef, { data: JSON.stringify(newTasksList) }).catch(console.error);
                     }
-
-                }, 10000);
+                }, 10000); // Проверка каждые 10 секунд
 
                 return () => clearInterval(interval);
             }, [tasks, user, notificationsPermitted]);
@@ -255,7 +345,6 @@
             const updateTasksInCloud = async (newTasks) => {
                 setTasks(newTasks);
                 if (!user) return;
-                
                 setIsSyncing(true);
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'calendar', 'tasks');
@@ -273,7 +362,6 @@
                 try {
                     await signInWithPopup(auth, provider);
                 } catch (error) {
-                    console.error("Ошибка входа:", error);
                     setLoginError('Ошибка авторизации. Убедитесь, что ваш домен добавлен в настройки Firebase.');
                 }
             };
@@ -299,7 +387,7 @@
                 setTempTaskTime('');
                 setActiveInput(null);
                 
-                if (tempTaskTime && !notificationsPermitted) {
+                if (tempTaskTime && !notificationsPermitted && 'Notification' in window) {
                     requestNotificationPermission();
                 }
             };
@@ -329,7 +417,7 @@
                 updateTasksInCloud(newTasks);
                 setEditingTaskId(null);
                 
-                if (editTaskTime && !notificationsPermitted) {
+                if (editTaskTime && !notificationsPermitted && 'Notification' in window) {
                     requestNotificationPermission();
                 }
             };
@@ -369,9 +457,7 @@
                 setCurrentDate(new Date());
                 setTimeout(() => {
                     const todayElement = document.getElementById('today-card');
-                    if (todayElement) {
-                        todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
+                    if (todayElement) todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 100);
             };
 
@@ -379,9 +465,7 @@
                 if (user && !isSyncing && !initialScrollDone) {
                     const timer = setTimeout(() => {
                         const todayElement = document.getElementById('today-card');
-                        if (todayElement) {
-                            todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
+                        if (todayElement) todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         setInitialScrollDone(true);
                     }, 400); 
                     return () => clearTimeout(timer);
@@ -398,7 +482,7 @@
 
             if (!user) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] dark:bg-[#27272a] p-4 transition-colors duration-300">
+                    <div className="min-h-screen flex items-center justify-center p-4">
                         <div className="bg-white dark:bg-[#3f3f46] p-8 sm:p-10 rounded-3xl shadow-xl max-w-sm w-full text-center border border-[#e5e7eb] dark:border-[#52525b] animate-in">
                             <div className="bg-[#facc15] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-yellow-400/20">
                                 <Icon name="calendar" size={32} className="text-[#18181b]" />
@@ -431,8 +515,29 @@
 
             return (
                 <div className="min-h-screen p-2 sm:p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
+                    {/* UI Всплывающих внутриигровых уведомлений */}
+                    {activeAlarms.length > 0 && (
+                        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 w-full max-w-md px-4 pointer-events-none">
+                            {activeAlarms.map(alarm => (
+                                <div key={alarm.id} className="pointer-events-auto bg-[#facc15] text-[#18181b] p-4 sm:p-5 rounded-2xl shadow-2xl flex items-center justify-between border-2 border-yellow-400 animate-in">
+                                    <div className="flex items-center gap-4">
+                                        <div className="bg-yellow-900/10 p-2 rounded-full">
+                                            <Icon name="bell" size={28} className="animate-pulse" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-black uppercase tracking-wider opacity-75 mb-0.5">Напоминание</p>
+                                            <p className="font-bold text-sm sm:text-base leading-tight">{alarm.text}</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setActiveAlarms(prev => prev.filter(a => a.id !== alarm.id))} className="bg-[#18181b] text-[#facc15] px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide hover:bg-gray-800 transition-colors ml-4 flex-shrink-0 shadow-sm">
+                                        ОК
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="max-w-4xl mx-auto">
-                        
                         <header className="sticky top-2 sm:top-4 z-20 bg-white dark:bg-[#3f3f46] rounded-2xl shadow-lg border border-[#e5e7eb] dark:border-[#52525b] p-3 sm:p-4 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
                             <div className="flex items-center justify-between w-full sm:w-auto">
                                 <div className="flex items-center gap-3 sm:gap-4">
