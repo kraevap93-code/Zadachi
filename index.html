@@ -96,13 +96,14 @@
 
         const { useState, useEffect, useMemo } = React;
 
-        // Аудио контекст для звука уведомлений на смартфонах
-        let audioCtx = null;
+        // Глобальный объект для звука уведомлений из файла
+        let notificationAudio = null;
         const initAudio = () => {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!notificationAudio) {
+                notificationAudio = new Audio('./notification.mp3');
+                // Загружаем звук в память при первом касании экрана для обхода блокировок браузера
+                notificationAudio.load();
             }
-            if (audioCtx.state === 'suspended') audioCtx.resume();
         };
 
         const Icon = ({ name, size = 20, className = "" }) => {
@@ -234,25 +235,13 @@
                 return () => unsubscribe();
             }, [user]);
 
-            // Функция звукового сигнала
-            const playBeepSound = () => {
+            // Функция звукового сигнала (воспроизведение MP3)
+            const playSound = () => {
                 initAudio();
-                if (!audioCtx) return;
-                try {
-                    const osc = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    osc.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Тон
-                    osc.frequency.setValueAtTime(0, audioCtx.currentTime + 0.1);
-                    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2);
-                    
-                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.5);
-                } catch (e) { console.error("Ошибка воспроизведения звука:", e); }
+                if (notificationAudio) {
+                    notificationAudio.currentTime = 0; // Сбрасываем на начало, если звук уже играл
+                    notificationAudio.play().catch(e => console.warn("Браузер заблокировал автовоспроизведение звука:", e));
+                }
             };
 
             const triggerSystemNotification = (taskText) => {
@@ -302,7 +291,7 @@
                                 
                                 // 1. Внутриэкранное уведомление + Звук (гарантированно работает при открытом приложении)
                                 setActiveAlarms(prev => [...prev, task]);
-                                playBeepSound();
+                                playSound();
 
                                 // 2. Системное Push Уведомление
                                 if (notificationsPermitted) {
