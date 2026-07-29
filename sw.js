@@ -1,8 +1,9 @@
-const CACHE_NAME = 'zadachi-cache-v2'; // Изменили v1 на v2! Это заставит телефон обновить кэш
+const CACHE_NAME = 'zadachi-cache-v3'; // Изменили на v3 для обновления кэша!
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
-  './manifest.json'
+  './manifest.json',
+  './notification.mp3' // Добавили кэширование нашего звукового файла
 ];
 
 self.addEventListener('install', (event) => {
@@ -11,13 +12,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Кэш v2 открыт, новые ресурсы загружены');
+        console.log('Кэш v3 открыт, новые ресурсы загружены');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// Добавляем логику удаления старого кэша (v1)
+// Добавляем логику удаления старого кэша (v1 и v2)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
