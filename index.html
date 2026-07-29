@@ -65,7 +65,7 @@
                     .catch(err => console.warn('Ошибка регистрации ServiceWorker (PWA):', err.message));
             });
         } else {
-            console.log('ServiceWorker временно отключен в режиме предпросмотра. На GitHub Pages всё будет работать.');
+            console.log('ServiceWorker временно отключен в режиме предпросмотра.');
         }
     </script>
 
@@ -123,7 +123,9 @@
                 edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>,
                 clock: <g><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>,
                 bell: <g><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></g>,
-                bellOff: <g><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></g>
+                bellOff: <g><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></g>,
+                volume2: <g><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></g>,
+                volumeX: <g><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></g>
             };
             return (
                 <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -139,10 +141,12 @@
             const [activeInput, setActiveInput] = useState(null);
             const [tempTaskText, setTempTaskText] = useState('');
             const [tempTaskTime, setTempTaskTime] = useState('');
+            const [tempTaskSound, setTempTaskSound] = useState(true); // Состояние звука для новой задачи
             
             const [editingTaskId, setEditingTaskId] = useState(null);
             const [editTaskText, setEditTaskText] = useState('');
             const [editTaskTime, setEditTaskTime] = useState('');
+            const [editTaskSound, setEditTaskSound] = useState(true); // Состояние звука для редактируемой
             
             const [user, setUser] = useState(null);
             const [authLoading, setAuthLoading] = useState(true);
@@ -151,7 +155,6 @@
             const [isSyncing, setIsSyncing] = useState(false);
             const [initialScrollDone, setInitialScrollDone] = useState(false);
             
-            // Состояние для внутриэкранных уведомлений (Toast)
             const [activeAlarms, setActiveAlarms] = useState([]);
 
             const [notificationsPermitted, setNotificationsPermitted] = useState(
@@ -167,7 +170,7 @@
                 }
             });
 
-            // Разблокировка Audio API при первом тапе (необходимо для iOS и Android)
+            // Разблокировка Audio API при первом тапе
             useEffect(() => {
                 const handleInteract = () => initAudio();
                 document.addEventListener('click', handleInteract, { once: true });
@@ -239,20 +242,20 @@
             const playSound = () => {
                 initAudio();
                 if (notificationAudio) {
-                    notificationAudio.currentTime = 0; // Сбрасываем на начало, если звук уже играл
-                    notificationAudio.play().catch(e => console.warn("Браузер заблокировал автовоспроизведение звука:", e));
+                    notificationAudio.currentTime = 0; 
+                    notificationAudio.play().catch(e => console.warn("Браузер заблокировал звук:", e));
                 }
             };
 
-            const triggerSystemNotification = (taskText) => {
+            const triggerSystemNotification = (taskText, playSoundOnDevice) => {
                 const options = {
                     body: taskText,
                     icon: "logo4c.jpg",
-                    vibrate: [300, 100, 300, 100, 300],
-                    requireInteraction: true
+                    vibrate: playSoundOnDevice ? [300, 100, 300, 100, 300] : [], // Вибрация только если включен звук
+                    requireInteraction: true,
+                    silent: !playSoundOnDevice // Передаем системе команду не "пикать", если звук выключен
                 };
 
-                // На Android Chrome new Notification(...) вызывает ошибку, требуется ServiceWorker
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistration().then(reg => {
                         if (reg) {
@@ -270,7 +273,7 @@
                 try {
                     new Notification("Напоминание!", options);
                 } catch (e) {
-                    console.log("Системные уведомления не поддерживаются в этом контексте (обычно на мобильных без PWA).");
+                    console.log("Обычный API уведомлений недоступен.");
                 }
             };
 
@@ -285,17 +288,38 @@
                     
                     let needsUpdate = false;
                     const updatedTasks = todayTasks.map(task => {
-                        if (task.time && !task.completed && !task.notified) {
-                            const [hours, minutes] = task.time.split(':');
-                            if (now.getHours() === parseInt(hours) && now.getMinutes() === parseInt(minutes)) {
-                                
-                                // 1. Внутриэкранное уведомление + Звук (гарантированно работает при открытом приложении)
-                                setActiveAlarms(prev => [...prev, task]);
-                                playSound();
+                        if (!task.completed && !task.notified) {
+                            let triggerNow = false;
+                            
+                            // Логика 1: Если у задачи есть время
+                            if (task.time) {
+                                const [hours, minutes] = task.time.split(':');
+                                if (now.getHours() === parseInt(hours) && now.getMinutes() === parseInt(minutes)) {
+                                    triggerNow = true;
+                                }
+                            } 
+                            // Логика 2: Если времени нет (срабатывает в 09:00, или сразу если создано позже 09:00 сегодня)
+                            else {
+                                if (now.getHours() >= 9) {
+                                    triggerNow = true;
+                                }
+                            }
 
-                                // 2. Системное Push Уведомление
+                            if (triggerNow) {
+                                // Проверяем, включил ли пользователь звук для этой задачи (по умолчанию true)
+                                const soundEnabled = task.withSound !== false; 
+
+                                // Внутриэкранная карточка
+                                setActiveAlarms(prev => [...prev, task]);
+                                
+                                // Проигрываем наш .mp3, если звук разрешен
+                                if (soundEnabled) {
+                                    playSound();
+                                }
+
+                                // Системное Push Уведомление
                                 if (notificationsPermitted) {
-                                    triggerSystemNotification(task.text);
+                                    triggerSystemNotification(task.text, soundEnabled);
                                 }
                                 
                                 needsUpdate = true;
@@ -311,7 +335,7 @@
                         const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'calendar', 'tasks');
                         setDoc(docRef, { data: JSON.stringify(newTasksList) }).catch(console.error);
                     }
-                }, 10000); // Проверка каждые 10 секунд
+                }, 10000);
 
                 return () => clearInterval(interval);
             }, [tasks, user, notificationsPermitted]);
@@ -339,7 +363,7 @@
                     const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'calendar', 'tasks');
                     await setDoc(docRef, { data: JSON.stringify(newTasks) });
                 } catch (error) {
-                    console.error("Ошибка сохранения задач:", error);
+                    console.error("Ошибка сохранения:", error);
                 } finally {
                     setIsSyncing(false);
                 }
@@ -351,7 +375,7 @@
                 try {
                     await signInWithPopup(auth, provider);
                 } catch (error) {
-                    setLoginError('Ошибка авторизации. Убедитесь, что ваш домен добавлен в настройки Firebase.');
+                    setLoginError('Ошибка авторизации. Убедитесь, что домен добавлен в Firebase.');
                 }
             };
 
@@ -359,6 +383,7 @@
                 if (!tempTaskText.trim()) { 
                     setActiveInput(null); 
                     setTempTaskTime('');
+                    setTempTaskSound(true);
                     return; 
                 }
                 const newTask = { 
@@ -366,6 +391,7 @@
                     text: tempTaskText, 
                     completed: false,
                     time: tempTaskTime || null,
+                    withSound: tempTaskSound, // Сохраняем настройку звука
                     notified: false
                 };
                 
@@ -374,9 +400,10 @@
                 
                 setTempTaskText('');
                 setTempTaskTime('');
+                setTempTaskSound(true);
                 setActiveInput(null);
                 
-                if (tempTaskTime && !notificationsPermitted && 'Notification' in window) {
+                if (!notificationsPermitted && 'Notification' in window) {
                     requestNotificationPermission();
                 }
             };
@@ -385,6 +412,7 @@
                 setEditingTaskId(task.id);
                 setEditTaskText(task.text);
                 setEditTaskTime(task.time || '');
+                setEditTaskSound(task.withSound !== false); // Если свойства нет, значит звук был включен (старые задачи)
             };
 
             const saveEdit = (dateKey, taskId) => {
@@ -399,6 +427,8 @@
                             ...t, 
                             text: editTaskText, 
                             time: editTaskTime || null,
+                            withSound: editTaskSound,
+                            // Сбрасываем notified, только если изменилось время
                             notified: (t.time !== editTaskTime) ? false : t.notified
                         } : t
                     )
@@ -406,7 +436,7 @@
                 updateTasksInCloud(newTasks);
                 setEditingTaskId(null);
                 
-                if (editTaskTime && !notificationsPermitted && 'Notification' in window) {
+                if (!notificationsPermitted && 'Notification' in window) {
                     requestNotificationPermission();
                 }
             };
@@ -504,7 +534,6 @@
 
             return (
                 <div className="min-h-screen p-2 sm:p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
-                    {/* UI Всплывающих внутриигровых уведомлений */}
                     {activeAlarms.length > 0 && (
                         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 w-full max-w-md px-4 pointer-events-none">
                             {activeAlarms.map(alarm => (
@@ -618,24 +647,33 @@
                                                                     }}
                                                                     className="flex-1 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded px-3 py-1.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]"
                                                                 />
-                                                                <input 
-                                                                    type="time" 
-                                                                    value={editTaskTime}
-                                                                    onChange={(e) => setEditTaskTime(e.target.value)}
-                                                                    className="bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded px-2 py-1.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]"
-                                                                />
-                                                                <button onClick={() => saveEdit(dateKey, task.id)} className="bg-[#facc15] text-[#18181b] px-3 py-1.5 rounded text-xs font-bold shadow-md">ОК</button>
+                                                                <div className="flex gap-2 w-full sm:w-auto">
+                                                                    <input 
+                                                                        type="time" 
+                                                                        value={editTaskTime}
+                                                                        onChange={(e) => setEditTaskTime(e.target.value)}
+                                                                        className="bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded px-2 py-1.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5] flex-1 sm:flex-none"
+                                                                    />
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => setEditTaskSound(!editTaskSound)} 
+                                                                        className={`px-3 py-1.5 rounded text-xs font-bold shadow-md border transition-all ${editTaskSound ? 'bg-yellow-400/20 border-[#facc15] text-[#facc15]' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] text-[#a1a1aa]'}`}
+                                                                        title={editTaskSound ? "Звук включен" : "Звук выключен"}
+                                                                    >
+                                                                        <Icon name={editTaskSound ? "volume2" : "volumeX"} size={16} />
+                                                                    </button>
+                                                                    <button onClick={() => saveEdit(dateKey, task.id)} className="bg-[#facc15] text-[#18181b] px-3 py-1.5 rounded text-xs font-bold shadow-md">ОК</button>
+                                                                </div>
                                                             </div>
                                                         ) : (
                                                             <div onDoubleClick={() => startEdit(task)} className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer gap-1 sm:gap-4" title="Дважды кликните, чтобы редактировать">
                                                                 <span className={`text-sm font-semibold tracking-tight leading-snug ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>
                                                                     {task.text}
                                                                 </span>
-                                                                {task.time && (
-                                                                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
-                                                                        <Icon name="clock" size={12} /> {task.time}
-                                                                    </span>
-                                                                )}
+                                                                <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
+                                                                    {task.time ? <><Icon name="clock" size={12} /> {task.time}</> : 'Весь день'}
+                                                                    {task.withSound === false && <Icon name="volumeX" size={12} className="ml-0.5 opacity-70" title="Звук отключен" />}
+                                                                </span>
                                                             </div>
                                                         )}
 
@@ -654,9 +692,17 @@
 
                                             {activeInput === dateKey ? (
                                                 <div className="flex gap-2 animate-in flex-col sm:flex-row">
-                                                    <input autoFocus type="text" value={tempTaskText} onChange={(e) => setTempTaskText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addTask(dateKey); if (e.key === 'Escape') { setActiveInput(null); setTempTaskTime(''); } }} placeholder="Введите задачу..." className="flex-1 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-4 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]" />
+                                                    <input autoFocus type="text" value={tempTaskText} onChange={(e) => setTempTaskText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addTask(dateKey); if (e.key === 'Escape') { setActiveInput(null); setTempTaskTime(''); setTempTaskSound(true); } }} placeholder="Введите задачу..." className="flex-1 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-4 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]" />
                                                     <div className="flex gap-2 w-full sm:w-auto">
                                                         <input type="time" value={tempTaskTime} onChange={(e) => setTempTaskTime(e.target.value)} title="Время напоминания" className="bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-3 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5] flex-1 sm:flex-none" />
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setTempTaskSound(!tempTaskSound)} 
+                                                            className={`p-3 rounded-xl border flex items-center justify-center transition-all flex-1 sm:flex-none ${tempTaskSound ? 'bg-yellow-400/20 border-[#facc15] text-[#facc15]' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] text-[#a1a1aa]'}`}
+                                                            title={tempTaskSound ? "Звук включен" : "Звук выключен"}
+                                                        >
+                                                            <Icon name={tempTaskSound ? "volume2" : "volumeX"} size={18} />
+                                                        </button>
                                                         <button onMouseDown={(e) => e.preventDefault()} onClick={() => addTask(dateKey)} className="bg-[#facc15] text-[#18181b] px-6 py-3 rounded-xl text-sm font-black uppercase tracking-wider shadow-lg shadow-yellow-400/20 flex-1 sm:flex-none">ОК</button>
                                                     </div>
                                                 </div>
