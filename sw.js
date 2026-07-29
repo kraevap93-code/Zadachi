@@ -1,24 +1,22 @@
-const CACHE_NAME = 'zadachi-cache-v4'; // Изменили на v4 для обновления кэша!
+const CACHE_NAME = 'zadachi-cache-v6'; // Увеличили версию до v6
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
   './manifest.json',
-  './notification.mp3' // Добавили кэширование нашего звукового файла
+  './notification.mp3' // Обязательно кэшируем звук
 ];
 
 self.addEventListener('install', (event) => {
-  // Заставляем новый Service Worker активироваться сразу
-  self.skipWaiting();
+  // Мы УБРАЛИ self.skipWaiting(), чтобы обновление ждало разрешения от кнопки пользователя
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Кэш v3 открыт, новые ресурсы загружены');
+        console.log('Кэш v6 открыт, новые ресурсы загружены');
         return cache.addAll(urlsToCache);
       })
   );
 });
 
-// Добавляем логику удаления старого кэша (v1 и v2)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -60,4 +58,11 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    // Получили команду от пользователя — принудительно активируем новую версию
+    self.skipWaiting();
+  }
 });
