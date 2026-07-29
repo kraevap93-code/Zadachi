@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v3'; // Изменили на v3 для обновления кэша!
+const CACHE_NAME = 'zadachi-cache-v4'; // Изменили на v4 для обновления кэша!
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
