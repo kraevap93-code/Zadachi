@@ -39,10 +39,8 @@
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        /* Стили для лоадера синхронизации */
         .sync-spin { animation: spin 2s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        /* Стили для поля времени */
         input[type="time"]::-webkit-calendar-picker-indicator {
             cursor: pointer;
             filter: invert(0.5) sepia(1) saturate(5) hue-rotate(10deg);
@@ -55,17 +53,37 @@
 <body class="bg-[#f3f4f6] dark:bg-[#27272a] transition-colors duration-300">
     <div id="root"></div>
 
-    <!-- Регистрация Service Worker -->
     <script>
-        // Проверяем, что мы не в изолированной песочнице (протокол должен начинаться на http)
         if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('ServiceWorker успешно зарегистрирован!', reg.scope))
-                    .catch(err => console.warn('Ошибка регистрации ServiceWorker (PWA):', err.message));
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('ServiceWorker зарегистрирован!', reg.scope);
+                    
+                    // Если обновление уже скачано
+                    if (reg.waiting) {
+                        window.dispatchEvent(new CustomEvent('swUpdate', { detail: reg.waiting }));
+                    }
+                    
+                    // Слушаем появление нового обновления
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                window.dispatchEvent(new CustomEvent('swUpdate', { detail: newWorker }));
+                            }
+                        });
+                    });
+                }).catch(err => console.warn('Ошибка ServiceWorker:', err.message));
+
+                // Применяем обновление: перезагружаем страницу
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        window.location.reload();
+                    }
+                });
             });
-        } else {
-            console.log('ServiceWorker временно отключен в режиме предпросмотра.');
         }
     </script>
 
@@ -74,29 +92,22 @@
         import { getAuth, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // === НАСТРОЙКА FIREBASE ===
-        let firebaseConfig;
-        if (typeof __firebase_config !== 'undefined') {
-            firebaseConfig = JSON.parse(__firebase_config);
-        } else {
-            firebaseConfig = {
-                apiKey: "AIzaSyDDqvS-Qg938Yu6jlSAnM2NFlK5lb_rzhI", 
-                authDomain: "zadachi-b507e.firebaseapp.com",
-                projectId: "zadachi-b507e",
-                storageBucket: "zadachi-b507e.appspot.com",
-                messagingSenderId: "984202830628",
-                appId: "1:984202830628:web:887343533e3c82c1df49b1"
-            };
-        }
+        let firebaseConfig = {
+            apiKey: "AIzaSyDDqvS-Qg938Yu6jlSAnM2NFlK5lb_rzhI", 
+            authDomain: "zadachi-b507e.firebaseapp.com",
+            projectId: "zadachi-b507e",
+            storageBucket: "zadachi-b507e.appspot.com",
+            messagingSenderId: "984202830628",
+            appId: "1:984202830628:web:887343533e3c82c1df49b1"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'zadachi-b507e';
+        const appId = 'zadachi-b507e';
 
         const { useState, useEffect, useMemo } = React;
 
-        // Глобальный объект для звука уведомлений из файла
         let notificationAudio = null;
         const initAudio = () => {
             if (!notificationAudio) {
@@ -141,12 +152,12 @@
             const [activeInput, setActiveInput] = useState(null);
             const [tempTaskText, setTempTaskText] = useState('');
             const [tempTaskTime, setTempTaskTime] = useState('');
-            const [tempTaskSound, setTempTaskSound] = useState(true); // Состояние звука для новой задачи
+            const [tempTaskSound, setTempTaskSound] = useState(true); 
             
             const [editingTaskId, setEditingTaskId] = useState(null);
             const [editTaskText, setEditTaskText] = useState('');
             const [editTaskTime, setEditTaskTime] = useState('');
-            const [editTaskSound, setEditTaskSound] = useState(true); // Состояние звука для редактируемой
+            const [editTaskSound, setEditTaskSound] = useState(true); 
             
             const [user, setUser] = useState(null);
             const [authLoading, setAuthLoading] = useState(true);
@@ -155,6 +166,8 @@
             const [isSyncing, setIsSyncing] = useState(false);
             const [initialScrollDone, setInitialScrollDone] = useState(false);
             
+            // Состояние для обновления приложения
+            const [updateWorker, setUpdateWorker] = useState(null);
             const [activeAlarms, setActiveAlarms] = useState([]);
 
             const [notificationsPermitted, setNotificationsPermitted] = useState(
@@ -170,7 +183,6 @@
                 }
             });
 
-            // Разблокировка Audio API при первом тапе
             useEffect(() => {
                 const handleInteract = () => initAudio();
                 document.addEventListener('click', handleInteract, { once: true });
@@ -191,9 +203,23 @@
                         localStorage.setItem('theme', 'light');
                     }
                 } catch (e) {
-                    console.warn("Доступ к localStorage заблокирован браузером.");
+                    console.warn("Доступ к localStorage заблокирован бразуером.");
                 }
             }, [isDarkMode]);
+
+            // Слушаем событие обновления PWA от браузера
+            useEffect(() => {
+                const onSwUpdate = (e) => setUpdateWorker(e.detail);
+                window.addEventListener('swUpdate', onSwUpdate);
+                return () => window.removeEventListener('swUpdate', onSwUpdate);
+            }, []);
+
+            // Функция для применения обновления по клику
+            const applyUpdate = () => {
+                if (updateWorker) {
+                    updateWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+            };
 
             const requestNotificationPermission = async () => {
                 if (!('Notification' in window)) {
@@ -208,10 +234,6 @@
             };
 
             useEffect(() => {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    signInWithCustomToken(auth, __initial_auth_token).catch(console.error);
-                }
-
                 const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
                     setUser(currentUser);
                     setAuthLoading(false);
@@ -238,7 +260,6 @@
                 return () => unsubscribe();
             }, [user]);
 
-            // Функция звукового сигнала (воспроизведение MP3)
             const playSound = () => {
                 initAudio();
                 if (notificationAudio) {
@@ -251,9 +272,9 @@
                 const options = {
                     body: taskText,
                     icon: "logo4c.jpg",
-                    vibrate: playSoundOnDevice ? [300, 100, 300, 100, 300] : [], // Вибрация только если включен звук
+                    vibrate: playSoundOnDevice ? [300, 100, 300, 100, 300] : [], 
                     requireInteraction: true,
-                    silent: !playSoundOnDevice // Передаем системе команду не "пикать", если звук выключен
+                    silent: !playSoundOnDevice // Передаем системе команду играть тихо, если звук выключен
                 };
 
                 if ('serviceWorker' in navigator) {
@@ -277,7 +298,6 @@
                 }
             };
 
-            // Главный таймер напоминаний
             useEffect(() => {
                 if (!user || Object.keys(tasks).length === 0) return;
 
@@ -291,14 +311,14 @@
                         if (!task.completed && !task.notified) {
                             let triggerNow = false;
                             
-                            // Логика 1: Если у задачи есть время
+                            // 1. Если время указано
                             if (task.time) {
                                 const [hours, minutes] = task.time.split(':');
                                 if (now.getHours() === parseInt(hours) && now.getMinutes() === parseInt(minutes)) {
                                     triggerNow = true;
                                 }
                             } 
-                            // Логика 2: Если времени нет (срабатывает в 09:00, или сразу если создано позже 09:00 сегодня)
+                            // 2. Если времени нет, срабатывает в 09:00 (или сразу, если создали позже 09:00 сегодня)
                             else {
                                 if (now.getHours() >= 9) {
                                     triggerNow = true;
@@ -306,20 +326,16 @@
                             }
 
                             if (triggerNow) {
-                                // Проверяем, включил ли пользователь звук для этой задачи (по умолчанию true)
                                 const soundEnabled = task.withSound !== false; 
 
-                                // Внутриэкранная карточка
-                                setActiveAlarms(prev => [...prev, task]);
+                                setActiveAlarms(prev => [...prev, task]); // Показываем тост
                                 
-                                // Проигрываем наш .mp3, если звук разрешен
                                 if (soundEnabled) {
-                                    playSound();
+                                    playSound(); // Воспроизводим наш MP3
                                 }
 
-                                // Системное Push Уведомление
                                 if (notificationsPermitted) {
-                                    triggerSystemNotification(task.text, soundEnabled);
+                                    triggerSystemNotification(task.text, soundEnabled); // Отправляем системный Push
                                 }
                                 
                                 needsUpdate = true;
@@ -391,7 +407,7 @@
                     text: tempTaskText, 
                     completed: false,
                     time: tempTaskTime || null,
-                    withSound: tempTaskSound, // Сохраняем настройку звука
+                    withSound: tempTaskSound,
                     notified: false
                 };
                 
@@ -412,7 +428,7 @@
                 setEditingTaskId(task.id);
                 setEditTaskText(task.text);
                 setEditTaskTime(task.time || '');
-                setEditTaskSound(task.withSound !== false); // Если свойства нет, значит звук был включен (старые задачи)
+                setEditTaskSound(task.withSound !== false); 
             };
 
             const saveEdit = (dateKey, taskId) => {
@@ -428,7 +444,6 @@
                             text: editTaskText, 
                             time: editTaskTime || null,
                             withSound: editTaskSound,
-                            // Сбрасываем notified, только если изменилось время
                             notified: (t.time !== editTaskTime) ? false : t.notified
                         } : t
                     )
@@ -464,7 +479,6 @@
             };
 
             const allDays = useMemo(() => getDaysInMonth(), [currentDate]);
-
             const isToday = (date) => {
                 const today = new Date();
                 return date.getDate() === today.getDate() && 
@@ -534,6 +548,23 @@
 
             return (
                 <div className="min-h-screen p-2 sm:p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
+                    
+                    {/* Плашка с предложением обновиться */}
+                    {updateWorker && (
+                        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between gap-4 w-[90%] max-w-sm bg-[#18181b] p-4 rounded-2xl shadow-2xl border border-[#52525b] animate-in">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-[#facc15] p-2 rounded-full text-[#18181b]">
+                                    <Icon name="cloud" size={20} />
+                                </div>
+                                <span className="text-sm font-bold text-white leading-tight">Доступна новая<br/>версия!</span>
+                            </div>
+                            <button onClick={applyUpdate} className="bg-[#facc15] text-[#18181b] px-4 py-2.5 rounded-xl text-xs font-black uppercase shadow-sm hover:brightness-110 transition-all">
+                                Обновить
+                            </button>
+                        </div>
+                    )}
+
+                    {/* UI Всплывающих внутриигровых уведомлений */}
                     {activeAlarms.length > 0 && (
                         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 w-full max-w-md px-4 pointer-events-none">
                             {activeAlarms.map(alarm => (
@@ -603,6 +634,7 @@
                         </header>
 
                         <div className="space-y-4 sm:space-y-6">
+                            {}
                             {allDays.map((date) => {
                                 const dayNum = date.getDate();
                                 const dayName = weekDays[date.getDay()];
@@ -634,6 +666,7 @@
                                                             <Icon name={task.completed ? "checkCircle" : "circle"} size={22} />
                                                         </button>
 
+                                                        {}
                                                         {editingTaskId === task.id ? (
                                                             <div className="flex-1 flex flex-col sm:flex-row gap-2">
                                                                 <input 
@@ -690,6 +723,7 @@
                                                 ))}
                                             </div>
 
+                                            {}
                                             {activeInput === dateKey ? (
                                                 <div className="flex gap-2 animate-in flex-col sm:flex-row">
                                                     <input autoFocus type="text" value={tempTaskText} onChange={(e) => setTempTaskText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addTask(dateKey); if (e.key === 'Escape') { setActiveInput(null); setTempTaskTime(''); setTempTaskSound(true); } }} placeholder="Введите задачу..." className="flex-1 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-4 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]" />
@@ -718,6 +752,7 @@
                             })}
                         </div>
                     </div>
+                    {}
                     <footer className="mt-12 sm:mt-16 text-center border-t border-[#e5e7eb] dark:border-[#52525b] pt-6 sm:pt-8 pb-8 sm:pb-12 flex flex-col items-center justify-center gap-2">
                         <button onClick={() => signOut(auth)} className="sm:hidden mb-4 bg-rose-500/10 text-rose-500 border border-rose-500/20 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider">Выйти из аккаунта</button>
                         <p className="text-[10px] font-black text-[#4b5563] dark:text-[#a1a1aa] uppercase tracking-[0.4em]">Calendar Tasks System • 2024</p>
