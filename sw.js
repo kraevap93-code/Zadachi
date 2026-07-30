@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v13'; // Исправление верстки длинных задач
+const CACHE_NAME = 'zadachi-cache-v14';
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
@@ -9,8 +9,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Кэш v11 открыт, загружаем ресурсы в обход старого кэша...');
-        // Добавляем ?t=... к каждому URL, чтобы точно скачать новые файлы (пробитие кэша)
+        console.log('Кэш v14 открыт, загружаем ресурсы в обход старого кэша...');
         return Promise.all(
           urlsToCache.map(url => {
             return fetch(url + '?t=' + new Date().getTime())
