@@ -163,7 +163,6 @@
                 'Notification' in window && Notification.permission === 'granted'
             );
             
-            // Настройка автопереноса задач (по умолчанию включена)
             const [autoRollover, setAutoRollover] = useState(() => {
                 try {
                     const saved = localStorage.getItem('autoRollover');
@@ -306,7 +305,6 @@
                     let needsUpdate = false;
                     let nextTasks = { ...tasks };
 
-                    // 1. АВТО-ПЕРЕНОС ПРОСРОЧЕННЫХ ЗАДАЧ НА СЕГОДНЯ (если включен)
                     if (autoRollover) {
                         Object.keys(nextTasks).forEach(dateKey => {
                             if (dateKey === todayStr) return; 
@@ -327,7 +325,6 @@
                         });
                     }
 
-                    // 2. ОБРАБОТКА УВЕДОМЛЕНИЙ (только для сегодняшнего дня)
                     const todayTasks = nextTasks[todayStr] || [];
                     let alarmsTriggered = false;
                     
@@ -559,7 +556,6 @@
             return (
                 <div className="min-h-screen p-2 sm:p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
                     
-                    {/* Плашка Обновления */}
                     {updateWorker && (
                         <div className="fixed bottom-6 left-0 right-0 mx-auto z-50 flex items-center justify-between gap-4 w-[90%] max-w-sm bg-[#18181b] p-4 rounded-2xl shadow-2xl border border-[#52525b] animate-in">
                             <div className="flex items-center gap-3">
@@ -574,7 +570,6 @@
                         </div>
                     )}
 
-                    {/* Плашка Успешного обновления */}
                     {updateSuccess && (
                         <div className="fixed bottom-6 left-0 right-0 mx-auto z-50 flex items-center justify-center gap-3 w-[90%] max-w-sm bg-emerald-500 p-4 rounded-2xl shadow-2xl border border-emerald-400 animate-in">
                             <div className="bg-white/20 p-1.5 rounded-full text-white">
@@ -584,7 +579,6 @@
                         </div>
                     )}
 
-                    {/* Внутриигровые уведомления */}
                     {activeAlarms.length > 0 && (
                         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 w-full max-w-md px-4 pointer-events-none">
                             {activeAlarms.map(alarm => (
@@ -640,7 +634,6 @@
                                 </div>
                                 
                                 <div className="flex items-center gap-2">
-                                    {/* Кнопка автопереноса задач */}
                                     <button onClick={() => setAutoRollover(!autoRollover)} className={`p-2.5 bg-[#f3f4f6] dark:bg-[#27272a] rounded-xl transition-all border border-transparent dark:border-[#52525b] ${autoRollover ? 'text-emerald-500 hover:brightness-90' : 'text-[#a1a1aa] hover:text-[#facc15]'}`} title={autoRollover ? "Автоперенос включен" : "Автоперенос выключен"}>
                                         <Icon name="repeat" size={20}/>
                                     </button>
@@ -683,6 +676,7 @@
                                             </div>
 
                                             <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
+                                                {}
                                                 {dayTasks.map((task) => (
                                                     <div key={task.id} className={`group flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all ${task.completed ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 opacity-60' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15]'}`}>
                                                         <button onClick={() => toggleTask(dateKey, task.id)} className={`transition-all transform hover:scale-110 p-1 sm:p-0 mt-0.5 flex-shrink-0 ${task.completed ? 'text-emerald-500' : 'text-[#a1a1aa] hover:text-[#facc15]'}`}>
