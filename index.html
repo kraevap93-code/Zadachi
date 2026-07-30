@@ -217,7 +217,13 @@
             // Функция для применения обновления по клику
             const applyUpdate = () => {
                 if (updateWorker) {
+                    setUpdateWorker(null); // Сразу убираем плашку, чтобы она не висела
                     updateWorker.postMessage({ type: 'SKIP_WAITING' });
+                    
+                    // Резервный перезапуск: если браузер тупит, обновляем страницу принудительно
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
                 }
             };
 
