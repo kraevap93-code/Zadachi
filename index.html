@@ -108,15 +108,6 @@
 
         const { useState, useEffect, useMemo } = React;
 
-        let notificationAudio = null;
-        const initAudio = () => {
-            if (!notificationAudio) {
-                notificationAudio = new Audio('./notification.mp3');
-                // Загружаем звук в память при первом касании экрана для обхода блокировок браузера
-                notificationAudio.load();
-            }
-        };
-
         const Icon = ({ name, size = 20, className = "" }) => {
             const icons = {
                 chevronLeft: <path d="m15 18-6-6 6-6"/>,
@@ -182,16 +173,6 @@
                     return window.matchMedia('(prefers-color-scheme: dark)').matches;
                 }
             });
-
-            useEffect(() => {
-                const handleInteract = () => initAudio();
-                document.addEventListener('click', handleInteract, { once: true });
-                document.addEventListener('touchstart', handleInteract, { once: true });
-                return () => {
-                    document.removeEventListener('click', handleInteract);
-                    document.removeEventListener('touchstart', handleInteract);
-                };
-            }, []);
 
             useEffect(() => {
                 try {
@@ -266,14 +247,6 @@
                 return () => unsubscribe();
             }, [user]);
 
-            const playSound = () => {
-                initAudio();
-                if (notificationAudio) {
-                    notificationAudio.currentTime = 0; 
-                    notificationAudio.play().catch(e => console.warn("Браузер заблокировал звук:", e));
-                }
-            };
-
             const triggerSystemNotification = (taskText, playSoundOnDevice) => {
                 const options = {
                     body: taskText,
@@ -336,10 +309,6 @@
 
                                 setActiveAlarms(prev => [...prev, task]); // Показываем тост
                                 
-                                if (soundEnabled) {
-                                    playSound(); // Воспроизводим наш MP3
-                                }
-
                                 if (notificationsPermitted) {
                                     triggerSystemNotification(task.text, soundEnabled); // Отправляем системный Push
                                 }
@@ -593,6 +562,7 @@
                     )}
 
                     <div className="max-w-4xl mx-auto">
+                        {}
                         <header className="sticky top-2 sm:top-4 z-20 bg-white dark:bg-[#3f3f46] rounded-2xl shadow-lg border border-[#e5e7eb] dark:border-[#52525b] p-3 sm:p-4 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
                             <div className="flex items-center justify-between w-full sm:w-auto">
                                 <div className="flex items-center gap-3 sm:gap-4">
@@ -639,8 +609,8 @@
                             </div>
                         </header>
 
+                        {}
                         <div className="space-y-4 sm:space-y-6">
-                            {}
                             {allDays.map((date) => {
                                 const dayNum = date.getDate();
                                 const dayName = weekDays[date.getDay()];
