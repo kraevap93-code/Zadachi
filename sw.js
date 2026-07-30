@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v12'; // Повысили версию для центрирования плашки
+const CACHE_NAME = 'zadachi-cache-v13'; // Исправление верстки длинных задач
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
