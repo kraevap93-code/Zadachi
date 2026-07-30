@@ -684,13 +684,13 @@
 
                                             <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
                                                 {dayTasks.map((task) => (
-                                                    <div key={task.id} className={`group flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all ${task.completed ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 opacity-60' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15]'}`}>
-                                                        <button onClick={() => toggleTask(dateKey, task.id)} className={`transition-all transform hover:scale-110 p-1 sm:p-0 ${task.completed ? 'text-emerald-500' : 'text-[#a1a1aa] hover:text-[#facc15]'}`}>
+                                                    <div key={task.id} className={`group flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all ${task.completed ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 opacity-60' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15]'}`}>
+                                                        <button onClick={() => toggleTask(dateKey, task.id)} className={`transition-all transform hover:scale-110 p-1 sm:p-0 mt-0.5 flex-shrink-0 ${task.completed ? 'text-emerald-500' : 'text-[#a1a1aa] hover:text-[#facc15]'}`}>
                                                             <Icon name={task.completed ? "checkCircle" : "circle"} size={22} />
                                                         </button>
 
                                                         {editingTaskId === task.id ? (
-                                                            <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                                                            <div className="flex-1 flex flex-col sm:flex-row gap-2 min-w-0">
                                                                 <input 
                                                                     autoFocus
                                                                     type="text" 
@@ -700,9 +700,9 @@
                                                                         if (e.key === 'Enter') saveEdit(dateKey, task.id);
                                                                         if (e.key === 'Escape') cancelEdit();
                                                                     }}
-                                                                    className="flex-1 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded px-3 py-1.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]"
+                                                                    className="flex-1 min-w-0 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded px-3 py-1.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]"
                                                                 />
-                                                                <div className="flex gap-2 w-full sm:w-auto">
+                                                                <div className="flex gap-2 w-full sm:w-auto flex-shrink-0">
                                                                     <input 
                                                                         type="time" 
                                                                         value={editTaskTime}
@@ -721,11 +721,11 @@
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <div onDoubleClick={() => startEdit(task)} className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer gap-1 sm:gap-4" title="Дважды кликните, чтобы редактировать">
-                                                                <span className={`text-sm font-semibold tracking-tight leading-snug ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>
+                                                            <div onDoubleClick={() => startEdit(task)} className="flex-1 flex flex-col sm:flex-row sm:items-start justify-between cursor-pointer gap-2 sm:gap-4 min-w-0" title="Дважды кликните, чтобы редактировать">
+                                                                <span className={`text-sm font-medium tracking-tight leading-relaxed whitespace-pre-wrap break-words ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>
                                                                     {task.text}
                                                                 </span>
-                                                                <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
+                                                                <span className={`inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md flex-shrink-0 mt-1 sm:mt-0 w-fit ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
                                                                     {task.time ? <><Icon name="clock" size={12} /> {task.time}</> : 'Весь день'}
                                                                     {task.withSound === false && <Icon name="volumeX" size={12} className="ml-0.5 opacity-70" title="Звук отключен" />}
                                                                 </span>
@@ -733,12 +733,12 @@
                                                         )}
 
                                                         {editingTaskId !== task.id && (
-                                                            <button onClick={() => startEdit(task)} className="md:opacity-0 group-hover:opacity-100 p-2 text-[#4b5563] dark:text-[#a1a1aa] hover:text-[#facc15] transition-all" title="Редактировать">
+                                                            <button onClick={() => startEdit(task)} className="md:opacity-0 group-hover:opacity-100 p-1 mt-0.5 text-[#4b5563] dark:text-[#a1a1aa] hover:text-[#facc15] transition-all flex-shrink-0" title="Редактировать">
                                                                 <Icon name="edit" size={18} />
                                                             </button>
                                                         )}
 
-                                                        <button onClick={() => deleteTask(dateKey, task.id)} className="md:opacity-0 group-hover:opacity-100 p-2 text-[#4b5563] dark:text-[#a1a1aa] hover:text-rose-500 transition-all" title="Удалить">
+                                                        <button onClick={() => deleteTask(dateKey, task.id)} className="md:opacity-0 group-hover:opacity-100 p-1 mt-0.5 text-[#4b5563] dark:text-[#a1a1aa] hover:text-rose-500 transition-all flex-shrink-0" title="Удалить">
                                                             <Icon name="trash" size={18} />
                                                         </button>
                                                     </div>
