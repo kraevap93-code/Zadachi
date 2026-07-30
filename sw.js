@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v9'; // Повысили версию до v9
+const CACHE_NAME = 'zadachi-cache-v11'; // Повысили версию до v11 для новой кнопки автопереноса
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
@@ -9,8 +9,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Кэш v9 открыт, загружаем ресурсы в обход старого кэша...');
-        // Добавляем ?t=... к каждому URL, чтобы точно скачать новые файлы
+        console.log('Кэш v11 открыт, загружаем ресурсы в обход старого кэша...');
+        // Добавляем ?t=... к каждому URL, чтобы точно скачать новые файлы (пробитие кэша)
         return Promise.all(
           urlsToCache.map(url => {
             return fetch(url + '?t=' + new Date().getTime())
