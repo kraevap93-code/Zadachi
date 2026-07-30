@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v7'; // Увеличили версию до v7
+const CACHE_NAME = 'zadachi-cache-v9'; // Повысили версию до v9
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
@@ -6,12 +6,20 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (event) => {
-  // Мы УБРАЛИ self.skipWaiting(), чтобы обновление ждало разрешения от кнопки пользователя
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Кэш v7 открыт, новые ресурсы загружены');
-        return cache.addAll(urlsToCache);
+        console.log('Кэш v9 открыт, загружаем ресурсы в обход старого кэша...');
+        // Добавляем ?t=... к каждому URL, чтобы точно скачать новые файлы
+        return Promise.all(
+          urlsToCache.map(url => {
+            return fetch(url + '?t=' + new Date().getTime())
+              .then(response => {
+                if (!response.ok) throw new Error('Ошибка загрузки: ' + url);
+                return cache.put(url, response);
+              });
+          })
+        );
       })
   );
 });
@@ -27,9 +35,8 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -61,7 +68,6 @@ self.addEventListener('notificationclick', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    // Получили команду от пользователя — принудительно активируем новую версию
     self.skipWaiting();
   }
 });
