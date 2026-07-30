@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v11'; // Повысили версию до v11 для новой кнопки автопереноса
+const CACHE_NAME = 'zadachi-cache-v12'; // Повысили версию для центрирования плашки
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
