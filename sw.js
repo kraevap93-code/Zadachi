@@ -1,9 +1,8 @@
-const CACHE_NAME = 'zadachi-cache-v6'; // Увеличили версию до v6
+const CACHE_NAME = 'zadachi-cache-v7'; // Увеличили версию до v7
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
-  './manifest.json',
-  './notification.mp3' // Обязательно кэшируем звук
+  './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -11,7 +10,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Кэш v6 открыт, новые ресурсы загружены');
+        console.log('Кэш v7 открыт, новые ресурсы загружены');
         return cache.addAll(urlsToCache);
       })
   );
