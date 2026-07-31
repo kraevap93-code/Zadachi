@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v14';
+const CACHE_NAME = 'zadachi-cache-v15';
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
@@ -9,7 +9,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Кэш v14 открыт, загружаем ресурсы в обход старого кэша...');
+        console.log('Кэш ' + CACHE_NAME + ' открыт, загружаем ресурсы...');
         return Promise.all(
           urlsToCache.map(url => {
             return fetch(url + '?t=' + new Date().getTime())
@@ -48,9 +48,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('notificationclick', (event) => {
-  console.log('Клик по уведомлению:', event.notification);
   event.notification.close();
-
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
