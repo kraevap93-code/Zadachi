@@ -55,7 +55,7 @@
     <script>
         if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').then(reg => {
+                navigator.serviceWorker.register('sw.js?v=' + new Date().getTime()).then(reg => {
                     console.log('ServiceWorker зарегистрирован!', reg.scope);
                     
                     if (reg.waiting) {
@@ -72,13 +72,9 @@
                     });
                 }).catch(err => console.warn('Ошибка ServiceWorker:', err.message));
 
-                let refreshing = false;
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    if (!refreshing) {
-                        refreshing = true;
-                        sessionStorage.setItem('app_updated', 'true');
-                        window.location.reload();
-                    }
+                    sessionStorage.setItem('app_updated', 'true');
+                    window.location.reload();
                 });
             });
         }
@@ -153,7 +149,6 @@
             const [loginError, setLoginError] = useState('');
             
             const [isSyncing, setIsSyncing] = useState(false);
-            const [initialScrollDone, setInitialScrollDone] = useState(false);
             
             const [updateWorker, setUpdateWorker] = useState(null);
             const [updateSuccess, setUpdateSuccess] = useState(false);
@@ -218,10 +213,6 @@
             const applyUpdate = () => {
                 if (updateWorker) {
                     updateWorker.postMessage({ type: 'SKIP_WAITING' });
-                    setUpdateWorker(null); 
-                } else {
-                    sessionStorage.setItem('app_updated', 'true');
-                    window.location.reload();
                 }
             };
 
@@ -345,7 +336,6 @@
 
                             if (triggerNow) {
                                 const soundEnabled = task.withSound !== false; 
-
                                 setActiveAlarms(prev => [...prev, task]);
                                 
                                 if (notificationsPermitted) {
@@ -580,7 +570,7 @@
                     )}
 
                     {activeAlarms.length > 0 && (
-                        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 w-full max-w-md px-4 pointer-events-none">
+                        <div className="fixed top-4 left-0 right-0 mx-auto z-50 flex flex-col gap-3 w-[90%] max-w-md pointer-events-none">
                             {activeAlarms.map(alarm => (
                                 <div key={alarm.id} className="pointer-events-auto bg-[#facc15] text-[#18181b] p-4 sm:p-5 rounded-2xl shadow-2xl flex items-center justify-between border-2 border-yellow-400 animate-in">
                                     <div className="flex items-center gap-4">
@@ -601,6 +591,7 @@
                     )}
 
                     <div className="max-w-4xl mx-auto">
+                        {}
                         <header className="sticky top-2 sm:top-4 z-20 bg-white dark:bg-[#3f3f46] rounded-2xl shadow-lg border border-[#e5e7eb] dark:border-[#52525b] p-3 sm:p-4 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
                             <div className="flex items-center justify-between w-full sm:w-auto">
                                 <div className="flex items-center gap-3 sm:gap-4">
@@ -650,6 +641,7 @@
                             </div>
                         </header>
 
+                        {}
                         <div className="space-y-4 sm:space-y-6">
                             {allDays.map((date) => {
                                 const dayNum = date.getDate();
@@ -669,7 +661,7 @@
                                             {today && <span className="bg-[#facc15] text-[#18181b] text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-tighter">Текущий</span>}
                                         </div>
 
-                                        <div className="flex-1">
+                                        <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-3 sm:mb-4">
                                                 <Icon name="list" size={14} className="text-[#facc15]" />
                                                 <h3 className="text-[10px] font-black text-[#4b5563] dark:text-[#a1a1aa] uppercase tracking-[0.2em]">Запланировано: {dayTasks.length}</h3>
@@ -679,11 +671,14 @@
                                                 {}
                                                 {dayTasks.map((task) => (
                                                     <div key={task.id} className={`group flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all ${task.completed ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 opacity-60' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15]'}`}>
+                                                        
+                                                        {/* Checkbox */}
                                                         <button onClick={() => toggleTask(dateKey, task.id)} className={`transition-all transform hover:scale-110 p-1 sm:p-0 mt-0.5 flex-shrink-0 ${task.completed ? 'text-emerald-500' : 'text-[#a1a1aa] hover:text-[#facc15]'}`}>
                                                             <Icon name={task.completed ? "checkCircle" : "circle"} size={22} />
                                                         </button>
 
                                                         {editingTaskId === task.id ? (
+                                                            // Edit Mode
                                                             <div className="flex-1 flex flex-col sm:flex-row gap-2 min-w-0">
                                                                 <input 
                                                                     autoFocus
@@ -715,34 +710,40 @@
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <div onDoubleClick={() => startEdit(task)} className="flex-1 flex flex-col sm:flex-row sm:items-start justify-between cursor-pointer gap-2 sm:gap-4 min-w-0" title="Дважды кликните, чтобы редактировать">
-                                                                <span className={`text-sm font-medium tracking-tight leading-relaxed whitespace-pre-wrap break-words ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>
+                                                            // Read Mode (Fixed Layout)
+                                                            <div onDoubleClick={() => startEdit(task)} className="flex-1 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4 min-w-0 cursor-pointer" title="Дважды кликните, чтобы редактировать">
+                                                                <div className={`flex-1 min-w-0 text-sm font-medium tracking-tight leading-relaxed whitespace-pre-wrap break-words ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>
                                                                     {task.text}
-                                                                </span>
-                                                                <span className={`inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md flex-shrink-0 mt-1 sm:mt-0 w-fit ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
-                                                                    {task.time ? <><Icon name="clock" size={12} /> {task.time}</> : 'Весь день'}
-                                                                    {task.withSound === false && <Icon name="volumeX" size={12} className="ml-0.5 opacity-70" title="Звук отключен" />}
-                                                                </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 mt-1 sm:mt-0 pt-0.5">
+                                                                    <span className={`inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md flex-shrink-0 w-fit ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
+                                                                        {task.time ? <><Icon name="clock" size={12} /> {task.time}</> : 'Весь день'}
+                                                                        {task.withSound === false && <Icon name="volumeX" size={12} className="ml-0.5 opacity-70" title="Звук отключен" />}
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                         )}
 
+                                                        {/* Action Buttons */}
                                                         {editingTaskId !== task.id && (
-                                                            <button onClick={() => startEdit(task)} className="md:opacity-0 group-hover:opacity-100 p-1 mt-0.5 text-[#4b5563] dark:text-[#a1a1aa] hover:text-[#facc15] transition-all flex-shrink-0" title="Редактировать">
-                                                                <Icon name="edit" size={18} />
-                                                            </button>
+                                                            <div className="flex items-center gap-1 flex-shrink-0 mt-0.5 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button onClick={() => startEdit(task)} className="p-1 text-[#4b5563] dark:text-[#a1a1aa] hover:text-[#facc15] transition-all" title="Редактировать">
+                                                                    <Icon name="edit" size={18} />
+                                                                </button>
+                                                                <button onClick={() => deleteTask(dateKey, task.id)} className="p-1 text-[#4b5563] dark:text-[#a1a1aa] hover:text-rose-500 transition-all" title="Удалить">
+                                                                    <Icon name="trash" size={18} />
+                                                                </button>
+                                                            </div>
                                                         )}
-
-                                                        <button onClick={() => deleteTask(dateKey, task.id)} className="md:opacity-0 group-hover:opacity-100 p-1 mt-0.5 text-[#4b5563] dark:text-[#a1a1aa] hover:text-rose-500 transition-all flex-shrink-0" title="Удалить">
-                                                            <Icon name="trash" size={18} />
-                                                        </button>
                                                     </div>
                                                 ))}
                                             </div>
 
+                                            {}
                                             {activeInput === dateKey ? (
                                                 <div className="flex gap-2 animate-in flex-col sm:flex-row">
-                                                    <input autoFocus type="text" value={tempTaskText} onChange={(e) => setTempTaskText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addTask(dateKey); if (e.key === 'Escape') { setActiveInput(null); setTempTaskTime(''); setTempTaskSound(true); } }} placeholder="Введите задачу..." className="flex-1 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-4 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]" />
-                                                    <div className="flex gap-2 w-full sm:w-auto">
+                                                    <input autoFocus type="text" value={tempTaskText} onChange={(e) => setTempTaskText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addTask(dateKey); if (e.key === 'Escape') { setActiveInput(null); setTempTaskTime(''); setTempTaskSound(true); } }} placeholder="Введите задачу..." className="flex-1 min-w-0 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-4 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]" />
+                                                    <div className="flex gap-2 w-full sm:w-auto flex-shrink-0">
                                                         <input type="time" value={tempTaskTime} onChange={(e) => setTempTaskTime(e.target.value)} title="Время напоминания" className="bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-3 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5] flex-1 sm:flex-none" />
                                                         <button 
                                                             type="button"
@@ -767,6 +768,7 @@
                             })}
                         </div>
                     </div>
+                    {}
                     <footer className="mt-12 sm:mt-16 text-center border-t border-[#e5e7eb] dark:border-[#52525b] pt-6 sm:pt-8 pb-8 sm:pb-12 flex flex-col items-center justify-center gap-2">
                         <button onClick={() => signOut(auth)} className="sm:hidden mb-4 bg-rose-500/10 text-rose-500 border border-rose-500/20 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider">Выйти из аккаунта</button>
                         <p className="text-[10px] font-black text-[#4b5563] dark:text-[#a1a1aa] uppercase tracking-[0.4em]">Calendar Tasks System • 2026</p>
