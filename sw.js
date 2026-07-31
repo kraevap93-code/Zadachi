@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zadachi-cache-v16';
+const CACHE_NAME = 'zadachi-cache-v17';
 const urlsToCache = [
   './index.html',
   './logo4c.jpg',
