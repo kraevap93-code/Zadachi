@@ -55,8 +55,12 @@
     <script>
         if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=' + new Date().getTime()).then(reg => {
+                // Регистрируем SW правильно, без генерации новых версий каждую секунду
+                navigator.serviceWorker.register('./sw.js').then(reg => {
                     console.log('ServiceWorker зарегистрирован!', reg.scope);
+                    
+                    // Принудительно проверяем, есть ли обновления на сервере
+                    reg.update();
                     
                     if (reg.waiting) {
                         window.dispatchEvent(new CustomEvent('swUpdate', { detail: reg.waiting }));
@@ -72,9 +76,13 @@
                     });
                 }).catch(err => console.warn('Ошибка ServiceWorker:', err.message));
 
+                let refreshing = false;
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    sessionStorage.setItem('app_updated', 'true');
-                    window.location.reload();
+                    if (!refreshing) {
+                        refreshing = true;
+                        sessionStorage.setItem('app_updated', 'true');
+                        window.location.reload();
+                    }
                 });
             });
         }
@@ -109,7 +117,7 @@
                 checkCircle: <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4l-10 10.01L9 11"/>,
                 circle: <circle cx="12" cy="12" r="10"/>,
                 trash: <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2m-6 9 2 2 4-4"/>,
-                calendar: <path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>,
+                calendar: <path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>,
                 sun: <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41m12.73-12.73-1.41 1.41M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/>,
                 moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>,
                 list: <path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>,
@@ -153,6 +161,8 @@
             const [updateWorker, setUpdateWorker] = useState(null);
             const [updateSuccess, setUpdateSuccess] = useState(false);
             const [activeAlarms, setActiveAlarms] = useState([]);
+            
+            const [hasScrolled, setHasScrolled] = useState(false); // Отслеживание прокрутки
 
             const [notificationsPermitted, setNotificationsPermitted] = useState(
                 'Notification' in window && Notification.permission === 'granted'
@@ -190,16 +200,20 @@
                 }
             }, []);
 
-            // Автоматический скролл к сегодняшнему дню при первой загрузке
+            // ИСПРАВЛЕННАЯ АВТОПРОКРУТКА
             useEffect(() => {
-                const timer = setTimeout(() => {
-                    const todayElement = document.getElementById('today-card');
-                    if (todayElement) {
-                        todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }, 300);
-                return () => clearTimeout(timer);
-            }, []);
+                // Прокручиваем только тогда, когда авторизация пройдена, данные загружены и мы еще не прокручивали
+                if (!authLoading && user && !hasScrolled) {
+                    const timer = setTimeout(() => {
+                        const todayElement = document.getElementById('today-card');
+                        if (todayElement) {
+                            todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setHasScrolled(true); // Запоминаем, что уже прокрутили, чтобы не дергало экран потом
+                        }
+                    }, 800); // Даем 800мс на отрисовку карточек на медленных устройствах
+                    return () => clearTimeout(timer);
+                }
+            }, [authLoading, user, hasScrolled]);
 
             useEffect(() => {
                 try {
@@ -221,10 +235,16 @@
                 return () => window.removeEventListener('swUpdate', onSwUpdate);
             }, []);
 
+            // ИСПРАВЛЕННАЯ ФУНКЦИЯ ОБНОВЛЕНИЯ
             const applyUpdate = () => {
                 if (updateWorker) {
                     updateWorker.postMessage({ type: 'SKIP_WAITING' });
                 }
+                // Страховочная перезагрузка, если Service Worker завис
+                setTimeout(() => {
+                    sessionStorage.setItem('app_updated', 'true');
+                    window.location.reload(true);
+                }, 500);
             };
 
             const requestNotificationPermission = async () => {
@@ -272,7 +292,7 @@
                     icon: "logo4c.jpg",
                     vibrate: playSoundOnDevice ? [300, 100, 300, 100, 300] : [], 
                     requireInteraction: true,
-                    silent: !playSoundOnDevice 
+                    silent: !playSoundOnDevice // Если true - пуш придет без звука
                 };
 
                 if ('serviceWorker' in navigator) {
@@ -307,6 +327,7 @@
                     let needsUpdate = false;
                     let nextTasks = { ...tasks };
 
+                    // Перенос невыполненных задач на сегодня
                     if (autoRollover) {
                         Object.keys(nextTasks).forEach(dateKey => {
                             if (dateKey === todayStr) return; 
@@ -557,7 +578,6 @@
             return (
                 <div className="min-h-screen p-2 sm:p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
                     
-                    {}
                     {updateWorker && (
                         <div className="fixed bottom-6 left-0 right-0 mx-auto z-50 flex items-center justify-between gap-4 w-[90%] max-w-sm bg-[#18181b] p-4 rounded-2xl shadow-2xl border border-[#52525b] animate-in">
                             <div className="flex items-center gap-3">
@@ -603,7 +623,6 @@
                     )}
 
                     <div className="max-w-4xl mx-auto">
-                        {}
                         <header className="sticky top-2 sm:top-4 z-20 bg-white dark:bg-[#3f3f46] rounded-2xl shadow-lg border border-[#e5e7eb] dark:border-[#52525b] p-3 sm:p-4 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
                             <div className="flex items-center justify-between w-full sm:w-auto">
                                 <div className="flex items-center gap-3 sm:gap-4">
@@ -680,17 +699,14 @@
                                             </div>
 
                                             <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
-                                                {}
                                                 {dayTasks.map((task) => (
                                                     <div key={task.id} className={`group flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all ${task.completed ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20 opacity-60' : 'bg-[#f3f4f6] dark:bg-[#27272a] border-[#e5e7eb] dark:border-[#52525b] hover:border-[#facc15]'}`}>
                                                         
-                                                        {/* Checkbox */}
                                                         <button onClick={() => toggleTask(dateKey, task.id)} className={`transition-all transform hover:scale-110 p-1 sm:p-0 mt-0.5 flex-shrink-0 ${task.completed ? 'text-emerald-500' : 'text-[#a1a1aa] hover:text-[#facc15]'}`}>
                                                             <Icon name={task.completed ? "checkCircle" : "circle"} size={22} />
                                                         </button>
 
                                                         {editingTaskId === task.id ? (
-                                                            // Edit Mode
                                                             <div className="flex-1 flex flex-col sm:flex-row gap-2 min-w-0">
                                                                 <input 
                                                                     autoFocus
@@ -722,17 +738,16 @@
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            // Read Mode (Fixed Layout for long text)
                                                             <div onDoubleClick={() => startEdit(task)} className="flex-1 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4 min-w-0 cursor-pointer" title="Дважды кликните, чтобы редактировать">
                                                                 
-                                                                <div className={`flex-1 min-w-0`}>
+                                                                <div className="flex-1 min-w-0">
                                                                     <p className={`text-sm font-medium tracking-tight leading-relaxed whitespace-pre-wrap break-words m-0 ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>
                                                                         {task.text}
                                                                     </p>
                                                                 </div>
 
                                                                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 mt-1 sm:mt-0 pt-0.5">
-                                                                    <span className={`inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md flex-shrink-0 w-fit ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:textemerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
+                                                                    <span className={`inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md flex-shrink-0 w-fit ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
                                                                         {task.time ? <><Icon name="clock" size={12} /> {task.time}</> : 'Весь день'}
                                                                         {task.withSound === false && <Icon name="volumeX" size={12} className="ml-0.5 opacity-70" title="Звук отключен" />}
                                                                     </span>
@@ -740,7 +755,6 @@
                                                             </div>
                                                         )}
 
-                                                        {/* Action Buttons */}
                                                         {editingTaskId !== task.id && (
                                                             <div className="flex items-center gap-1 flex-shrink-0 mt-0.5 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <button onClick={() => startEdit(task)} className="p-1 text-[#4b5563] dark:text-[#a1a1aa] hover:text-[#facc15] transition-all" title="Редактировать">
@@ -755,7 +769,6 @@
                                                 ))}
                                             </div>
 
-                                            {}
                                             {activeInput === dateKey ? (
                                                 <div className="flex gap-2 animate-in flex-col sm:flex-row">
                                                     <input autoFocus type="text" value={tempTaskText} onChange={(e) => setTempTaskText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addTask(dateKey); if (e.key === 'Escape') { setActiveInput(null); setTempTaskTime(''); setTempTaskSound(true); } }} placeholder="Введите задачу..." className="flex-1 min-w-0 bg-white dark:bg-[#3f3f46] border border-[#facc15] rounded-xl px-4 py-3 text-sm font-medium shadow-inner outline-none focus:ring-4 focus:ring-yellow-400/20 transition-all text-[#111827] dark:text-[#f4f4f5]" />
