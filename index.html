@@ -82,7 +82,7 @@
 
    <script type="text/babel" data-type="module" data-presets="react">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let firebaseConfig = {
@@ -190,6 +190,17 @@
                 }
             }, []);
 
+            // Автоматический скролл к сегодняшнему дню при первой загрузке
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    const todayElement = document.getElementById('today-card');
+                    if (todayElement) {
+                        todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 300);
+                return () => clearTimeout(timer);
+            }, []);
+
             useEffect(() => {
                 try {
                     if (isDarkMode) {
@@ -261,7 +272,7 @@
                     icon: "logo4c.jpg",
                     vibrate: playSoundOnDevice ? [300, 100, 300, 100, 300] : [], 
                     requireInteraction: true,
-                    silent: !playSoundOnDevice
+                    silent: !playSoundOnDevice 
                 };
 
                 if ('serviceWorker' in navigator) {
@@ -546,6 +557,7 @@
             return (
                 <div className="min-h-screen p-2 sm:p-4 md:p-8 text-[#111827] dark:text-[#f4f4f5] transition-colors duration-300">
                     
+                    {}
                     {updateWorker && (
                         <div className="fixed bottom-6 left-0 right-0 mx-auto z-50 flex items-center justify-between gap-4 w-[90%] max-w-sm bg-[#18181b] p-4 rounded-2xl shadow-2xl border border-[#52525b] animate-in">
                             <div className="flex items-center gap-3">
@@ -710,13 +722,17 @@
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            // Read Mode (Fixed Layout)
+                                                            // Read Mode (Fixed Layout for long text)
                                                             <div onDoubleClick={() => startEdit(task)} className="flex-1 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4 min-w-0 cursor-pointer" title="Дважды кликните, чтобы редактировать">
-                                                                <div className={`flex-1 min-w-0 text-sm font-medium tracking-tight leading-relaxed whitespace-pre-wrap break-words ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>
-                                                                    {task.text}
+                                                                
+                                                                <div className={`flex-1 min-w-0`}>
+                                                                    <p className={`text-sm font-medium tracking-tight leading-relaxed whitespace-pre-wrap break-words m-0 ${task.completed ? 'text-[#4b5563] dark:text-[#a1a1aa] line-through' : 'text-[#111827] dark:text-[#f4f4f5]'}`}>
+                                                                        {task.text}
+                                                                    </p>
                                                                 </div>
+
                                                                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 mt-1 sm:mt-0 pt-0.5">
-                                                                    <span className={`inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md flex-shrink-0 w-fit ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
+                                                                    <span className={`inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md flex-shrink-0 w-fit ${task.completed ? 'bg-emerald-500/10 text-emerald-600 dark:textemerald-400' : 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400'}`}>
                                                                         {task.time ? <><Icon name="clock" size={12} /> {task.time}</> : 'Весь день'}
                                                                         {task.withSound === false && <Icon name="volumeX" size={12} className="ml-0.5 opacity-70" title="Звук отключен" />}
                                                                     </span>
